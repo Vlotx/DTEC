@@ -1,0 +1,270 @@
+local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+
+-- Set theme:
+-- WindUI:SetTheme("Dark")
+
+--- EXAMPLE !!!
+
+function gradient(text, startColor, endColor)
+    local result = ""
+    local length = #text
+
+    for i = 1, length do
+        local t = (i - 1) / math.max(length - 1, 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+
+        local char = text:sub(i, i)
+        result = result .. "<font color=\"rgb(" .. r ..", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
+    end
+
+    return result
+end
+
+local Confirmed = false
+
+WindUI:Popup({
+    Title = "ยินดีต้อนรับ!",
+    Icon = "info",
+    Content = "นี้คือสคิป Dig to Earth's CORE! " .. gradient("Vlot", Color3.fromHex("#00FF87"), Color3.fromHex("#60EFFF")) .. "",
+    Buttons = {
+        {
+            Title = "Cancel",
+            --Icon = "",
+            Callback = function() end,
+            Variant = "Tertiary", -- Primary, Secondary, Tertiary
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function() Confirmed = true end,
+            Variant = "Primary", -- Primary, Secondary, Tertiary
+        }
+    }
+})
+
+
+repeat wait() until Confirmed
+
+--
+
+local Window = WindUI:CreateWindow({
+    Title = "Dig to Earth's CORE!",
+    Icon = "rbxassetid://115130100299135",
+    Author = "Vlot",
+    Folder = "CloudHub",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+    UserEnabled = false,
+    SideBarWidth = 200,
+    --Background = "rbxassetid://94982768616052", -- rbxassetid only
+    HasOutline = true,
+    -- remove it below if you don't want to use the key system in your script.
+    
+})
+
+
+--Window:SetBackgroundImage("rbxassetid://111557101088654")
+
+
+Window:EditOpenButton({
+    Title = "Open Example UI",
+    Icon = "monitor",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new( -- gradient
+        Color3.fromHex("FF0F7B"), 
+        Color3.fromHex("F89B29")
+    ),
+    --Enabled = false,
+    Draggable = true,
+})
+
+
+
+local Tabs = {
+    WindowTab = Window:Tab({ Title = "Main", Icon = "globe", Desc = "" }),
+}
+
+Window:SelectTab(1)
+
+
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local player = Players.LocalPlayer
+local DigEvent = ReplicatedStorage:WaitForChild("Remotes", 9e9):WaitForChild("DigEvent", 9e9)
+local BuyPickaxeEvent = ReplicatedStorage:WaitForChild("Remotes", 9e9):WaitForChild("BuyPickaxeEvent", 9e9)
+local pickaxeFolder = ReplicatedStorage:WaitForChild("Pickaxes", 9e9)
+
+local autoFarmEnabled = false
+local autoBuyEnabled = false
+local autoWinEnabled = false
+local connection
+
+-- Section สำหรับปุ่มทั้งหมด
+Tabs.WindowTab:Section({ Title = "Auto Farm" })
+
+-- ปุ่ม Toggle Auto Farm
+Tabs.WindowTab:Toggle({
+    Title = "Auto Farm Monny",
+    Default = false,
+    Callback = function(state)
+        autoFarmEnabled = state
+
+        if autoFarmEnabled then
+            connection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    DigEvent:FireServer()
+                end)
+            end)
+        else
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end
+})
+
+-- ปุ่ม Toggle Auto Buy
+Tabs.WindowTab:Toggle({
+    Title = "Auto Buy",
+    Default = false,
+    Callback = function(state)
+        autoBuyEnabled = state
+
+        if autoBuyEnabled then
+            task.spawn(function()
+                while autoBuyEnabled do
+                    for _, pickaxe in pairs(pickaxeFolder:GetChildren()) do
+                        local pickaxeName = pickaxe.Name
+
+                        local hasPickaxe =
+                            player.Backpack:FindFirstChild(pickaxeName) or
+                            (player.Character and player.Character:FindFirstChild(pickaxeName)) or
+                            (player.StarterGear and player.StarterGear:FindFirstChild(pickaxeName))
+
+                        if not hasPickaxe then
+                            local args = {
+                                [1] = pickaxeName
+                            }
+                            pcall(function()
+                                BuyPickaxeEvent:FireServer(unpack(args))
+                            end)
+                        end
+                    end
+                    task.wait(2)
+                end
+            end)
+        end
+    end
+})
+
+-- ปุ่ม Toggle Auto Win
+Tabs.WindowTab:Toggle({
+    Title = "Auto Win",
+    Default = false,
+    Callback = function(state)
+        autoWinEnabled = state
+
+        if autoWinEnabled then
+            task.spawn(function()
+                while autoWinEnabled do
+                    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                    if not hrp then
+                        task.wait(1)
+                        continue
+                    end
+
+                    for i = 1, 7 do
+                        local world = workspace:FindFirstChild("World" .. i)
+                        local spawns = world and world:FindFirstChild("Spawns")
+                        local mapBottom = world and world:FindFirstChild("Map") and world.Map:FindFirstChild("Bottom")
+
+                        if world and spawns and mapBottom then
+                            local thirdSpawn = spawns:GetChildren()[3]
+                            if thirdSpawn and (hrp.Position - thirdSpawn.Position).Magnitude <= 100 then
+                                hrp.CFrame = mapBottom.CFrame + Vector3.new(0, 5, 0)
+                                break
+                            end
+                        end
+                    end
+
+                    task.wait(1.5)
+                end
+            end)
+        end
+    end
+})
+
+
+
+local currentThemeName = WindUI:GetCurrentTheme()
+local themes = WindUI:GetThemes()
+
+local ThemeAccent = themes[currentThemeName].Accent
+local ThemeOutline = themes[currentThemeName].Outline
+local ThemeText = themes[currentThemeName].Text
+local ThemePlaceholderText = themes[currentThemeName].PlaceholderText
+
+function updateTheme()
+    WindUI:AddTheme({
+        Name = currentThemeName,
+        Accent = ThemeAccent,
+        Outline = ThemeOutline,
+        Text = ThemeText,
+        PlaceholderText = ThemePlaceholderText
+    })
+    WindUI:SetTheme(currentThemeName)
+end
+
+local CreateInput = Tabs.CreateThemeTab:Input({
+    Title = "Theme Name",
+    Value = currentThemeName,
+    Callback = function(name)
+        currentThemeName = name
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Background Color",
+    Default = Color3.fromHex(ThemeAccent),
+    Callback = function(color)
+        ThemeAccent = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Outline Color",
+    Default = Color3.fromHex(ThemeOutline),
+    Callback = function(color)
+        ThemeOutline = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Text Color",
+    Default = Color3.fromHex(ThemeText),
+    Callback = function(color)
+        ThemeText = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Placeholder Text Color",
+    Default = Color3.fromHex(ThemePlaceholderText),
+    Callback = function(color)
+        ThemePlaceholderText = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Button({
+    Title = "Update Theme",
+    Callback = function()
+        updateTheme()
+    end
+})
